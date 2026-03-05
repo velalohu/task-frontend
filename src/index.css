@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+:root {
+  --color-primary: #0F766E;
+  --color-primarySoft: #CCFBF1;
+  --color-bg: #444351;
+  --color-card: #564e6e;
+  --color-cardback: #353144;
+  --color-text: #ffffff;
+
+}
+
+@theme {
+  --color-card: #47415b;
+  --color-primary: #0F766E;
+  --color-bg: #0F766E;
+  --color-cardback: #353144;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
+
+
+
+
+
+
+
