@@ -1,5 +1,5 @@
 import { AnimatePresence, motion as Motion } from "framer-motion";
-import keycloak from "../auth/keycloak";
+import keycloak, { keycloakConfig } from "../auth/keycloak";
 
 export default function SideMenu({isOpen, onClose, userName, sectionVisibility, onToggleSection, priorityVisibility, onTogglePriority}) {
 const avatarInitial = (userName?.[0] || "U").toUpperCase();
@@ -10,7 +10,7 @@ const handleChangePassword = () => {
         return;
     }
 
-    const fallbackAccountUrl = "http://localhost:8081/realms/task/account";
+    const fallbackAccountUrl = `${keycloakConfig.url}/realms/${keycloakConfig.realm}/account`;
     window.location.href = fallbackAccountUrl;
 };
 
@@ -39,7 +39,7 @@ return(
             >
                 <div className="flex flex-col h-full">
                     <div className="mb-8 border-b border-white/10 pb-5">
-                        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-(--color-primary) text-white">
+                        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[--color-primary] text-white">
                             <span className="text-2xl font-bold"> {avatarInitial} </span>
                         </div>
                         <p className="text-xs uppercase tracking-wide text-white/60">Panel de usuario</p>
