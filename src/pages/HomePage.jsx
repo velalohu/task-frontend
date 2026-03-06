@@ -83,7 +83,7 @@ export default function HomePage(){
                         type="button"
                         disabled={isAuthTransitioning}
                         onClick={handleRegister}
-                        className={`w-56 rounded-md border border-white/25 bg-(--color-primary) px-5 py-3 font-semibold text-white transition-colors duration-200 hover:bg-white/20 ${isAuthTransitioning ? "opacity-70" : ""}`}
+                        className={`w-56 rounded-md border border-white/25 bg-white/10 px-5 py-3 font-semibold text-white transition-colors duration-200 hover:bg-white/20 ${isAuthTransitioning ? "opacity-70" : ""}`}
                     >
                         Crear cuenta
                     </button>
