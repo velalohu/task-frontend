@@ -21,7 +21,6 @@ export function useTasksData({ onTaskCreated } = {}) {
     });
 
     const loadTasks = useCallback(async () => {
-        setIsInitialLoading(true);
         try {
             const [pendingTasks, completedTasks] = await Promise.all([
                 getPendingTasks(),
