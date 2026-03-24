@@ -1,7 +1,7 @@
 import TaskItem from "./TaskItem";
 import { motion as Motion } from "framer-motion";
 
-export default function TaskList({ tasks, ...handlers }) {
+export default function TaskList({ tasks, onComplete, onUpdate, onDelete, onCreate, onCloseDraft }) {
   return (
     <div className="flex flex-col gap-3">
       {tasks.map((task) => {
@@ -15,7 +15,14 @@ export default function TaskList({ tasks, ...handlers }) {
             className="relative z-10 w-full min-w-0"
             transition={ { layout: { duration: 0.28, ease: [0.22, 1, 0.36, 1] } } }
           >
-            <TaskItem task={task} {...handlers} />
+            <TaskItem
+              task={task}
+              onComplete={onComplete}
+              onUpdate={onUpdate}
+              onDelete={onDelete}
+              onCreate={onCreate}
+              onCloseDraft={onCloseDraft}
+            />
           </Motion.div>
         );
       })}

@@ -12,6 +12,7 @@
   "dependencies": {
     "@react-md/core": "^7.0.1",
     "@tailwindcss/vite": "^4.1.18",
+    "date-fns": "^4.1.0",
     "framer-motion": "^12.29.0",
     "keycloak-js": "^26.2.3",
     "lucide-react": "^0.577.0",

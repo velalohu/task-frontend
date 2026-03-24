@@ -1,7 +1,5 @@
 import keycloak from "../auth/keycloak.js";
 
-const API_URL = "/api";
-
 async function authFetch(path, options = {}) {
     if (!keycloak?.authenticated) {
         await keycloak.login();
@@ -18,24 +16,20 @@ async function authFetch(path, options = {}) {
     const headers = new Headers(options.headers || {});
     headers.set("Authorization", `Bearer ${keycloak.token}`);
 
-  
-    if (options.body && !headers.has("Content-Type")) {
-        headers.set("Content-Type", "application/json");
-    }
-
-    let response = await fetch(`${API_URL}${path}`, {
+    let response = await fetch(path, {
         ...options,
         headers,
     });
 
     if (response.status === 401) {
-    try {
-        await keycloak.updateToken(0);
-        headers.set("Authorization", `Bearer ${keycloak.token}`);
-        response = await fetch(`${API_URL}${path}`,{
-        ...options,
-        headers,
-        })} catch{
+        try {
+            await keycloak.updateToken(0);
+            headers.set("Authorization", `Bearer ${keycloak.token}`);
+            response = await fetch(path, {
+                ...options,
+                headers,
+            });
+        } catch {
             await keycloak.login();
         }
     }
@@ -45,48 +39,51 @@ async function authFetch(path, options = {}) {
 }
 
 export async function getTasks() {
-    const response = await authFetch(`/tasks`);
+    const response = await authFetch(`/api/tasks`);
     return response.json();
 }
 
 export async function getPendingTasks() {
-    const response = await authFetch(`/tasks?completed=false`);
+    const response = await authFetch(`/api/tasks?completed=false`);
     return response.json();
 }
 
 export async function getCompletedTasks() {
-    const response = await authFetch(`/tasks?completed=true`);
+    const response = await authFetch(`/api/tasks?completed=true`);
     return response.json();
 }
 
 export async function createTask(task){
-    const response = await authFetch(`/tasks`, {
+    const response = await authFetch(`/api/tasks`, {
         method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
         body: JSON.stringify(task)
-        }
-    )
+    });
     return response.json();
 }
 
 export async function deleteTask(id){
-    await authFetch(`/tasks/${id}`, {
+    await authFetch(`/api/tasks/${id}`, {
         method: "DELETE",
     });
 }
 
 export async function updateTask(id, task){
-    const response = await authFetch(`/tasks/${id}`, {
-        method:"PUT",
+    const response = await authFetch(`/api/tasks/${id}`, {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json"
+        },
         body: JSON.stringify(task)
-    }
-    );
+    });
     return response.json();
 }
 
 export async function toggleTaskComplete(id){
-    const response = await authFetch(`/tasks/${id}/complete`, {
+    const response = await authFetch(`/api/tasks/${id}/complete`, {
         method: "PATCH"
-    }
-    );
+    });
     return response.json();
 }

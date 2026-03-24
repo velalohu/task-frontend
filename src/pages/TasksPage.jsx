@@ -1,102 +1,51 @@
-/* eslint-disable no-unused-vars */
-/* eslint-disable react-hooks/purity */
-/* eslint-disable react-hooks/immutability */
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import TaskList from "../components/TaskList";
-import { createTask, deleteTask, getCompletedTasks, getPendingTasks, toggleTaskComplete, updateTask } from "../api/api";
-import { groupTasksByDate } from "../utils/groupTasksByDate";
 import Card from "../components/Card";
-import { useLocation } from "react-router-dom";
-import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
+import { AnimatePresence, LayoutGroup, motion as Motion } from "framer-motion";
 import keycloak from "../auth/keycloak";
 import SideMenu from "../components/SideMenu";
-
-const DEFAULT_SECTION_VISIBILITY = {
-    today: true,
-    tomorrow: true,
-    week: true,
-    month: true,
-    later: true,
-    completed: true
-};
-
-const DEFAULT_PRIORITY_VISIBILITY = {
-    Baja: true,
-    Media: true,
-    Alta: true
-};
-
-function useVisibilityFilter(storageKey, defaults) {
-    const [visibility, setVisibility] = useState(() => {
-        try {
-            const raw = localStorage.getItem(storageKey);
-            if (!raw) return defaults;
-            const parsed = JSON.parse(raw);
-            return { ...defaults, ...parsed };
-        } catch (err) {
-            return defaults;
-        }
-    });
-
-    useEffect(() => {
-        localStorage.setItem(storageKey, JSON.stringify(visibility));
-    }, [storageKey, visibility]);
-
-    function toggleVisibility(key) {
-        setVisibility((current) => ({
-            ...current,
-            [key]: !current[key]
-        }));
-    }
-
-    return [visibility, toggleVisibility];
-}
+import { useTaskBoardPreferences } from "../hooks/useTaskBoardPreferences";
+import { useTasksData } from "../hooks/useTasksData";
+import { createDraftTask } from "../utils/createDraftTask";
 
 
 export default function TasksPage() {
 
-    const [completed, setCompleted] = useState([]);
-    const latestLoadRequestRef = useRef(0);
-
-    const [grouped, setGrouped] = useState({
-        today: [],
-        tomorrow: [],
-        week: [],
-        month: [],
-        later: []
-    });
     const [activeDraft, setActiveDraft] = useState(null);
 
-    const location = useLocation();
-    const [name, setName] = useState(null);
     const [menuOpen, setMenuOpen] = useState(false);
     const [useCompactGrid, setUseCompactGrid] = useState(false);
 
 
-    const userId = keycloak?.tokenParsed?.preferred_username || "anonymous";
-    const sectionStorageKey = `task:sectionVisibility:${userId}`;
-    const priorityStorageKey = `task:priorityVisibility:${userId}`;
-    const [sectionVisibility, handleToggleSection] = useVisibilityFilter(sectionStorageKey, DEFAULT_SECTION_VISIBILITY);
-    const [priorityVisibility, handleTogglePriority] = useVisibilityFilter(priorityStorageKey, DEFAULT_PRIORITY_VISIBILITY);
+    const userId = keycloak.tokenParsed.preferred_username;
+    const {
+        sectionVisibility,
+        priorityVisibility,
+        visiblePendingSections,
+        handleToggleSection,
+        handleTogglePriority
+    } = useTaskBoardPreferences(userId);
 
-    const visiblePendingSections = useMemo(() => {
-        const orderedSections = ["today", "tomorrow", "week", "month", "later"];
-        return orderedSections.filter((section) => sectionVisibility[section]);
-    }, [sectionVisibility]);
+    const {
+        completed,
+        grouped,
+        isInitialLoading,
+        loadTasks,
+        handleCreateTask,
+        handleOnComplete,
+        handleOnDelete,
+        handleOnUpdate
+    } = useTasksData({
+        onTaskCreated: () => setActiveDraft(null)
+    });
 
-    function getAnimationIndex(sectionKey) {
-        const index = visiblePendingSections.indexOf(sectionKey);
-        return index === -1 ? 0 : index;
-    }
-
-
-
+    const filteredCompletedTasks = useMemo(() => {
+        return completed.filter((task) => priorityVisibility[task.priority]);
+    }, [completed, priorityVisibility]);
 
     useEffect(() => {
-        const tname = location?.state?.name || keycloak?.tokenParsed?.preferred_username || "Usuario";
-        setName(tname);
         loadTasks();
-    }, [location?.state?.name]);
+    }, [loadTasks]);
 
     useEffect(() => {
         let timer;
@@ -111,93 +60,16 @@ export default function TasksPage() {
     }, [menuOpen]);
 
     function startDraft(group) {
-        if (!activeDraft || activeDraft === group) {
-            setActiveDraft(group);
+        if (!activeDraft) {
+            setActiveDraft({
+                group,
+                task: createDraftTask(group)
+            });
         }
     }
 
     function cancelDraft() {
         setActiveDraft(null);
-    }
-
-    function createDraftTask(group) {
-        const toInputDate = (date) => {
-            const yyyy = date.getFullYear();
-            const mm = String(date.getMonth() + 1).padStart(2, "0");
-            const dd = String(date.getDate()).padStart(2, "0");
-            return `${yyyy}-${mm}-${dd}`;
-        };
-        const addDays = (date, days) => {
-            const nextDate = new Date(date);
-            nextDate.setDate(nextDate.getDate() + days);
-            return nextDate;
-        };
-
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const endOfWeek = addDays(today, 6 - ((today.getDay() + 6) % 7));
-        const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-
-        let dueDate = "";
-        if (group === "today") {
-            dueDate = toInputDate(today);
-        } else if (group === "tomorrow") {
-            dueDate = toInputDate(addDays(today, 1));
-        } else if (group === "week") {
-            const firstWeekCandidate = addDays(today, 2);
-            dueDate = firstWeekCandidate <= endOfWeek ? toInputDate(firstWeekCandidate) : "";
-        } else if (group === "month") {
-            const firstMonthCandidate = addDays(endOfWeek, 1);
-            dueDate = firstMonthCandidate <= endOfMonth ? toInputDate(firstMonthCandidate) : "";
-        }
-
-        return {
-            id: `draft-${group}-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-            title: "",
-            description: "",
-            dueDate,
-            priority: "Media",
-            completed: false,
-            isDraft: true
-        };
-    }
-
-    async function loadTasks() {
-        const requestId = ++latestLoadRequestRef.current;
-        const [pendingTasks, completedTasks] = await Promise.all([
-            getPendingTasks(),
-            getCompletedTasks()
-        ]);
-
-        if (requestId !== latestLoadRequestRef.current) return;
-
-        setGrouped(groupTasksByDate(pendingTasks));
-        setCompleted(completedTasks);
-    }
-
-    async function handleCreateTask(task) {
-        await createTask(task);
-        setActiveDraft(null);
-
-        await loadTasks();
-    }
-
-    async function handleOnToggle(id) {
-        await toggleTaskComplete(id);
-        await loadTasks();
-    }
-
-    async function handleOnDelete(id) {
-        const ok = window.confirm("¿Estás seguro de que deseas eliminar esta tarea?");
-        if (!ok) return;
-
-        await deleteTask(id);
-        await loadTasks();
-    }
-
-    async function handleOnUpdate(id, task) {
-        await updateTask(id, task);
-        await loadTasks();
     }
 
     const cardVariants = {
@@ -214,20 +86,20 @@ export default function TasksPage() {
     };
 
     function renderAddTaskButton(sectionKey) {
-        if (activeDraft === sectionKey) return null;
+        if (activeDraft?.group === sectionKey) return null;
 
-        const isBlocked = activeDraft && activeDraft !== sectionKey;
+        const isBlocked = activeDraft && activeDraft.group !== sectionKey;
 
         return (
             <button
                 disabled={isBlocked}
                 onClick={() => startDraft(sectionKey)}
-                className={`text-sm text-[--color-muted] transition-all duration-200
-                opacity-0 pointer-events-none group-hover/card:opacity-100
+                className={`text-sm transition-all duration-200
+                opacity-0 group-hover/card:opacity-100
                 ${isBlocked
-                    ? "line-through cursor-not-allowed"
-                    : "hover:underline group-hover/card:pointer-events-auto"
-                }`}
+                        ? "line-through"
+                        : "hover:underline"
+                    }`}
             >
                 añadir tarea
             </button>
@@ -240,9 +112,9 @@ export default function TasksPage() {
         const filteredTasks = grouped[sectionKey].filter((task) => priorityVisibility[task.priority]);
 
         return (
-            <motion.div
+            <Motion.div
                 key={sectionKey}
-                custom={getAnimationIndex(sectionKey)}
+                custom={visiblePendingSections.indexOf(sectionKey)}
                 variants={cardVariants}
                 initial="hidden"
                 animate="show"
@@ -254,29 +126,26 @@ export default function TasksPage() {
                     <TaskList
                         tasks={[
                             ...filteredTasks,
-                            ...(activeDraft === sectionKey ? [createDraftTask(sectionKey)] : [])
+                            ...(activeDraft?.group === sectionKey ? [activeDraft.task] : [])
                         ]}
                         onDelete={handleOnDelete}
                         onCloseDraft={cancelDraft}
-                        onToggle={handleOnToggle}
+                        onComplete={handleOnComplete}
                         onUpdate={handleOnUpdate}
                         onCreate={handleCreateTask}
                     />
                     <div className=" h-5 mt-1">{renderAddTaskButton(sectionKey)}</div>
                 </Card>
-            </motion.div>
+            </Motion.div>
         );
     }
-
-    const filteredCompletedTasks = completed.filter((task) => priorityVisibility[task.priority]);
-
 
     return (
         <>
             <SideMenu
                 isOpen={menuOpen}
                 onClose={() => setMenuOpen(false)}
-                userName={name}
+                userName={keycloak?.tokenParsed?.preferred_username}
                 sectionVisibility={sectionVisibility}
                 onToggleSection={handleToggleSection}
                 priorityVisibility={priorityVisibility}
@@ -302,35 +171,41 @@ export default function TasksPage() {
                     </button>
                 </div>
                 <LayoutGroup id="tasks-board">
-                <div >
-                    {/* ================== PENDIENTES ================== */}
-                    <motion.div
-                        className={`grid w-full gap-6 ${useCompactGrid ? "grid-cols-[repeat(auto-fit,minmax(280px,1fr))]" : "grid-cols-[repeat(auto-fit,minmax(320px,1fr))]"}`}
-                    >
-                        <AnimatePresence mode="popLayout">
-                        {renderPendingSection("today", "Hoy")}
-                        {renderPendingSection("tomorrow", "Mañana")}
-                        {renderPendingSection("week", "Esta semana")}
-                        {renderPendingSection("month", "Este mes")}
-                        {renderPendingSection("later", "Sin fecha o más adelante")}
+                    <div >
+                        {isInitialLoading ? (
+                            <div className="py-8 text-center text-white/80">Cargando tareas...</div>
+                        ) : (
+                            <>
+                        {/* ================== PENDIENTES ================== */}
+                        <Motion.div
+                            className={`grid w-full gap-6 ${useCompactGrid ? "grid-cols-[repeat(auto-fit,minmax(280px,1fr))]" : "grid-cols-[repeat(auto-fit,minmax(320px,1fr))]"}`}
+                        >
+                            <AnimatePresence mode="popLayout">
+                                {renderPendingSection("today", "Hoy")}
+                                {renderPendingSection("tomorrow", "Mañana")}
+                                {renderPendingSection("week", "Esta semana")}
+                                {renderPendingSection("month", "Este mes")}
+                                {renderPendingSection("later", "Sin fecha o más adelante")}
 
-                    </AnimatePresence>
-                    </motion.div>
+                            </AnimatePresence>
+                        </Motion.div>
 
-                    {sectionVisibility.completed && (
-                        <div className="w-full max-w-125 mb-6 pr-1 pb-1">
-                            <Card title="Tareas completadas" tone="muted">
-                                <TaskList
-                                    onDelete={handleOnDelete}
-                                    onToggle={handleOnToggle}
-                                    onUpdate={handleOnUpdate}
-                                    tasks={filteredCompletedTasks}
-                                />
-                            </Card>
-                        </div>
-                    )}
+                        {sectionVisibility.completed && (
+                            <div className="w-full max-w-125 mb-6 pr-1 pb-1">
+                                <Card title="Tareas completadas" tone="muted">
+                                    <TaskList
+                                        onDelete={handleOnDelete}
+                                        onComplete={handleOnComplete}
+                                        onUpdate={handleOnUpdate}
+                                        tasks={filteredCompletedTasks}
+                                    />
+                                </Card>
+                            </div>
+                        )}
+                            </>
+                        )}
 
-                </div>
+                    </div>
                 </LayoutGroup>
             </div>
 

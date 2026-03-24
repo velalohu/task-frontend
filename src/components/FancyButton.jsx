@@ -2,8 +2,8 @@ export default function FancyButton({
   children,
   onClick,
   color = "green",
-  className = "",
   disabled = false,
+
   icon = false,
 }) {
   const styles = {
@@ -22,30 +22,24 @@ export default function FancyButton({
       hover: "hover:bg-red-600",
       shadowHover: "group-hover/xButton:bg-red-900"
     },
-    red2: {
-      base: "bg-red-500",
-      hover: "hover:bg-red-600",
-      shadowHover: "group-hover/xButton:bg-red-900"
-    },
   };
 
   const sizeClasses = icon
-    ? "w-11 h-11 p-0 flex items-center justify-center text-white [&>svg]:h-6 [&>svg]:w-6 [&>svg]:shrink-0"
+    ? "w-11 h-11 flex items-center justify-center"
     : "px-4 py-2 text-sm font-medium";
 
 
   return (
-    <div className="relative inline-block self-end group/xButton">
+    <div className="relative group/xButton">
       <span
         className={`
           absolute inset-0
-          translate-x-1 translate-y-1
           rounded-lg
           scale-97
           transition-all
-          ${styles[color].base}
-          ${styles[color].shadowHover}
-          group-hover/taskItem:scale-103   
+          ${disabled ? "bg-gray-500" : styles[color].base}
+          ${disabled ? "" : styles[color].shadowHover}
+          ${disabled ? "" : "group-hover/taskItem:scale-103"}
           
         `}
       />
@@ -57,15 +51,11 @@ export default function FancyButton({
         className={`
           relative
           ${sizeClasses}
-          rounded-lg bg-card
-          translate-x-1 translate-y-1
+          rounded-lg ${disabled ? "bg-gray-700 text-gray-300 cursor-not-allowed" : "bg-card"}
           transition-all duration-150 ease-out
-          hover:translate-x-0 hover:translate-y-0
-          active:translate-x-1 active:translate-y-1
-          
-          ${styles[color].hover}
-          ${className}
-
+          ${disabled ? "" : "hover:translate-x-0 hover:translate-y-0"}
+          ${disabled ? "" : "active:translate-x-1 active:translate-y-1"}
+          ${disabled ? "" : styles[color].hover}
         `}
       >
         {children}
